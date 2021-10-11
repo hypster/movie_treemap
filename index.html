@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<style>
+  #my_dataviz {
+    /* display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center; */
+    position: relative;
+    margin: 0 auto;
+    width: 1200px;
+    height: 600px;
+    text-align: center;
+  }
+  #my_dataviz svg {
+    position: relative;
+    z-index: 1;
+  }
+  .text {
+    position: absolute;
+    top: 0;
+    left: 0;
+    font-size: 0.8em;
+    color: white;
+    z-index: 1;
+  }
+  .text p {
+    position: absolute;
+    /* display: flex; */
+    /* flex-wrap: wrap; */
+    /* justify-content: left; */
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0.2em;
+    overflow-wrap: break-word;
+    line-height: 1;
+    cursor: pointer;
+  }
+
+  #tooltip {
+    position: absolute;
+    background-color: antiquewhite;
+    border-radius: 0.2em;
+    padding: 0 1em 0 1em;
+    display: flex;
+    text-align: center;
+    justify-content: center;
+    align-items: center;
+  }
+  .top {
+    text-align: center;
+  }
+  .top h1 {
+    font-weight: 700;
+    font-size: 2em;
+    margin: 0;
+  }
+  .top h2 {
+    margin: 0;
+    font-size: 1em;
+    font-weight: 100;
+  }
+
+
+
+</style>
+<body>
+  <div class="top">
+    <h1 id="title">Movies Sales</h1>
+    <h2 id="description">Top Most Sold Movies Grouped By Category</h2>
+  </div>
+  
+  <div id="my_dataviz">
+  </div>
+  <script src="https://cdn.freecodecamp.org/testable-projects-fcc/v1/bundle.js"></script>
+  <!-- Load d3.js -->
+  <script src="https://d3js.org/d3.v6.js"></script>
+
+  <!-- Create a div where the graph will take place -->
+  <script>
+
+    // set the dimensions and margins of the graph
+    const margin = { top: 10, right: 10, bottom: 10, left: 10 },
+      width = 1200 - margin.left - margin.right,
+      height = 600 - margin.top - margin.bottom;
+
+    
+
+    // append the svg object to the body of the page
+    const svg = d3.select("#my_dataviz")
+      .append("svg")
+      .attr("width", width + margin.left + margin.right)
+      .attr("height", height + margin.top + margin.bottom)
+      .append("g")
+      .attr("transform",
+        `translate(${margin.left}, ${margin.top})`);
+    
+
+    // read json data
+    d3.json("https://cdn.freecodecamp.org/testable-projects-fcc/data/tree_map/movie-data.json").then(function (data) {
+
+      // Give the data to this cluster layout:
+      const root = d3.hierarchy(data).sum(function (d) { return d.value }) // Here the size of each leave is given in the 'value' field in input data
+
+      // Then d3.treemap computes the position of each element of the hierarchy
+      d3.treemap()
+        .size([width, height])
+        .padding(2)
+        (root)
+      
+      // console.log(root)
+      // category
+
+      //顏色比例尺
+      let color = d3.scaleOrdinal(d3.schemeTableau10)
+
+      //tooltip
+    let tooltip = d3.select('#my_dataviz')
+    .append('div')
+    .attr('id', 'tooltip')
+    .style('transform', `translate(${margin.left}px, ${margin.top}px)`)
+    
+
+      // use this information to add rectangles:
+      svg
+        .selectAll("rect")
+        .data(root.leaves())
+        .join("rect")
+        .attr('class', 'tile')
+        .attr('data-name', function(d) {return d.data.name})
+        .attr('data-category', function(d) {return d.data.category})
+        .attr('data-value', function(d) {return d.data.value})
+        .attr('x', function (d) { return d.x0; })
+        .attr('y', function (d) { return d.y0; })
+        .attr('width', function (d) { return d.x1 - d.x0; })
+        .attr('height', function (d) { return d.y1 - d.y0; })
+        .style("stroke", "black")
+        .style("fill", function(d) { 
+          return color(d.data.category)})
+        
+
+      // and to add the text labels
+      d3.select('#my_dataviz')
+        .append('div')
+        .attr('class', 'text')
+        .style('transform', `translate(${margin.left}px, ${margin.top}px)`)
+        .selectAll("p")
+        .data(root.leaves())
+        .join("p")
+        .style('width', function (d) { return `${d.x1 - d.x0}px`; })
+        .style('height', function (d) { return `${d.y1 - d.y0}px`; })
+        .style("left", function (d) { return `${d.x0 }px` })    // +10 to adjust position (more right)
+        .style("top", function (d) { return `${d.y0 }px` })    // +20 to adjust position (lower)
+        .html(function (d) { return d.data.name })
+        .on('mouseover', function(event, d) {
+          tooltip
+          .style('opacity', '90%')
+          .html(function() {
+            let {category, name, value} = d.data
+            return `<p>Name: ${name}<br />
+              Category: ${category}<br /> 
+              Value: ${value}</p>`
+          })
+          .attr('data-value', d.data.value)
+          // .style('display', 'block')
+          .style('z-index', 2)
+          .style("left", function () {return `${event.x - (window.innerWidth - 1200) / 2 }px` })   
+          .style("top", function () { return `${event.y - (window.innerHeight - 600) / 2}px` })   
+        })
+        // .on('mousemove', function(event, d) {
+        //   tooltip
+        //   .style("left", function () {return `${event.pageX - event.offsetX }px` })   
+        //   .style("top", function () { return `${event.pageY - event.offsetY }px` })   
+        // })
+        .on('mouseout', function(event, d) {
+          tooltip
+          // .style('display', 'hidden')
+          .style('opacity', 0)
+          .style('z-index', 0)
+        })
+        
+        let categories = root.data.children.map(n => n.name)
+        console.log(categories)
+        let legend = d3.select('#my_dataviz')
+        .append('svg')
+        .attr('id', 'legend')
+        .attr('width', width)
+        .attr('height', height)
+        
+        legend
+        .selectAll('rect')
+        .data(categories)
+        .join('rect')
+        .attr('fill', function(d, i) {
+          return color(d)
+        })
+        .attr('class', 'legend-item')
+        .attr('width', 20)
+        .attr('height', 20)
+        .attr('x', function(d, i) {
+          return i * 100
+        })
+        .attr('y', function(d, i) {
+          return 0
+        })
+        legend
+        .selectAll('text')
+        .data(categories)
+        .join('text')
+        // .attr('width', 20)
+        // .attr('height', 20)
+        .attr('x', function(d, i) {
+          return i * 100 + 22
+        })
+        .attr('y', function(d, i) {
+          return 16
+        })
+        .text(function(d, i) {
+          return d
+        })
+        .attr('fill', 'black')
+
+
+    })
+
+    
+
+  </script>
+</body>
+
+</html>
